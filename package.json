@@ -1,0 +1,63 @@
+{
+  "name": "@harishmahamure/blazy.js",
+  "version": "1.0.0",
+  "description": "Blazy.JS - Ultra-lightweight, blazing-fast TypeScript backend framework built on uWebSockets.js",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./core/*": "./dist/core/*.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app/server.js",
+    "dev": "tsx --watch src/app/server.ts",
+    "bench": "tsx bench/memory.ts",
+    "scaffold": "tsx cli/scaffold.ts",
+    "prepublishOnly": "npm run build",
+    "version": "git add -A",
+    "postversion": "git push && git push --tags",
+    "release:patch": "npm version patch -m 'Release v%s' && npm publish --access public",
+    "release:minor": "npm version minor -m 'Release v%s' && npm publish --access public",
+    "release:major": "npm version major -m 'Release v%s' && npm publish --access public"
+  },
+  "dependencies": {
+    "uWebSockets.js": "uNetworking/uWebSockets.js#v20.49.0",
+    "protobufjs": "^7.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "sideEffects": false,
+
+  "license": "MIT",
+  "author": "Harish Mahamure",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/harishmahamure/blazy.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/harishmahamure/blazy.js/issues"
+  },
+  "homepage": "https://github.com/harishmahamure/blazy.js#readme",
+  "keywords": [
+    "backend",
+    "framework",
+    "typescript",
+    "uwebsockets",
+    "lightweight",
+    "fast",
+    "performance",
+    "websocket",
+    "protobuf",
+    "rest",
+    "api",
+    "microservices"
+  ]
+}

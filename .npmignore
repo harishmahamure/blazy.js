@@ -1,0 +1,56 @@
+# Source files (only ship compiled dist/)
+src/
+tsconfig.json
+
+# Tests and benchmarks
+bench/
+*.test.ts
+*.spec.ts
+
+# Dev tools
+cli/
+
+# Example app files
+protos/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Dependencies (let users install)
+node_modules/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Misc
+.env
+.env.*
+coverage/
+.nyc_output/
