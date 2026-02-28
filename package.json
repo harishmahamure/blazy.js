@@ -1,6 +1,6 @@
 {
   "name": "@harishmahamure/blazy.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Blazy.JS - Ultra-lightweight, blazing-fast TypeScript backend framework built on uWebSockets.js",
   "type": "module",
   "exports": {
@@ -35,7 +35,6 @@
     "node": ">=20.0.0"
   },
   "sideEffects": false,
-
   "license": "MIT",
   "author": "Harish Mahamure",
   "repository": {
