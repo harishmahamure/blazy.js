@@ -27,6 +27,7 @@ import { usersModule } from './modules/users.module.js';
 import { websocketModule } from './modules/websocket.module.js';
 import { protoUsersModule } from './modules/proto-users.module.js';
 import { abortHandlingExamples } from './modules/abort-handling.example.js';
+import { backpressureExamples } from './modules/backpressure.example.js';
 
 // =================== STARTUP ===================
 
@@ -64,6 +65,7 @@ const protoRegistry = new ProtoRegistry();
 await protoRegistry.loadProto('./protos/messages.proto');
 
 abortHandlingExamples(app);
+backpressureExamples(app);
 
 app.use(protobufMiddleware({
   registry: protoRegistry,

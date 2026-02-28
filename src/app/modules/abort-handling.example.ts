@@ -11,6 +11,13 @@
 import type { App } from '../../core/app.js';
 import type { Context } from '../../core/context.js';
 
+
+const getResponse = async () => {
+ await new Promise(resolve => setTimeout(resolve, 10000));
+ const response = await fetch('https://jsonplaceholder.typicode.com/todos/1')
+ return response.json();
+};
+
 export function abortHandlingExamples(app: App): void {
   
   /**
@@ -20,10 +27,9 @@ export function abortHandlingExamples(app: App): void {
   app.get('/api/slow-operation', async (ctx) => {
     console.log('Starting slow operation...');
     
-    await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds
+    const result = await getResponse(); 
     
-    
-    ctx.json({ result: 'Operation completed' });
+    ctx.json({ result });
   });
 
   /**

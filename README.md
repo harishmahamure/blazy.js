@@ -441,7 +441,69 @@ curl http://localhost:3000/api/slow-operation
 # Press Ctrl+C after 2 seconds
 ```
 
-📖 **See [docs/ABORT_HANDLING.md](docs/ABORT_HANDLING.md) for detailed examples and best practices**
+### Backpressure Handling (Large Responses)
+
+**Blazy.JS** handles backpressure automatically when sending large data to slow clients, preventing memory exhaustion.
+
+```typescript
+import { createReadStream } from 'fs';
+import { stat } from 'fs/promises';
+
+app.get('/download/large-file', async (ctx) => {
+  async function* fileChunks() {
+    const stream = createReadStream('./100MB-file.bin', {
+      highWaterMark: 64 * 1024 // 64KB chunks
+    });
+    
+    for await (const chunk of stream) {
+      if (ctx.aborted) {
+        stream.destroy();
+        break;
+      }
+      yield chunk;
+    }
+  }
+  
+  const stats = await stat('./100MB-file.bin');
+  ctx.setHeader('Content-Disposition', 'attachment; filename="file.bin"');
+  
+  // Automatically handles slow clients - constant memory usage!
+  await ctx.stream(fileChunks(), 'application/octet-stream', 200, stats.size);
+});
+
+// Or for simple buffers:
+app.get('/report', async (ctx) => {
+  const largeBuffer = await generateReport(); // 10MB
+  
+  // Automatically chunks and handles backpressure
+  await ctx.sendLarge(largeBuffer, 'application/pdf');
+});
+```
+
+#### Backpressure Benefits
+
+- ✅ Constant memory usage (~64KB per request, regardless of data size)
+- ✅ No OOM crashes with slow clients
+- ✅ Stream files of any size (GB+)
+- ✅ Automatic pause/resume when client is slow
+
+#### Backpressure API
+
+```typescript
+// Stream with async generator (recommended)
+await ctx.stream(asyncGenerator(), 'application/octet-stream');
+
+// Stream from array of buffers
+await ctx.stream([chunk1, chunk2, chunk3], 'text/plain');
+
+// Send large buffer with auto-chunking
+await ctx.sendLarge(largeBuffer, 'application/pdf');
+
+// Get current buffered bytes
+const buffered = ctx.getWriteOffset();
+```
+
+📖 **See [docs/BACKPRESSURE.md](docs/BACKPRESSURE.md) for detailed examples and best practices**
 
 ### Configuration
 

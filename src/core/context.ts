@@ -7,6 +7,7 @@
  * - Direct reference to uWS res/req — no wrapping overhead
  * - reset() clears all state without creating new objects
  * - Params object reused from router match (not cloned)
+ * - Backpressure handling for large responses to slow clients
  *
  * Memory per context: ~400 bytes (excluding lazy-parsed data)
  * Pool of 64 contexts: ~25KB total
@@ -404,6 +405,168 @@ export class Context {
     this._flush(code);
     this.res.writeHeader('Location', url);
     this.res.end();
+  }
+
+  // =================== BACKPRESSURE HANDLING ===================
+
+  /**
+   * Stream large data with automatic backpressure handling
+   * 
+   * Handles slow clients by pausing when socket buffer is full.
+   * Use this for large files, database exports, or any multi-megabyte responses.
+   * 
+   * @param chunks - Array of Buffer chunks or async generator
+   * @param contentType - Content-Type header
+   * @param status - HTTP status code
+   * @param totalSize - Optional total size for Content-Length header
+   * 
+   * @example
+   * // From array
+   * await ctx.stream([chunk1, chunk2, chunk3], 'application/octet-stream');
+   * 
+   * @example
+   * // From async generator
+   * async function* generateChunks() {
+   *   for (let i = 0; i < 100; i++) {
+   *     yield Buffer.from(`Chunk ${i}\n`);
+   *   }
+   * }
+   * await ctx.stream(generateChunks(), 'text/plain');
+   */
+  async stream(
+    chunks: Buffer[] | AsyncIterable<Buffer>,
+    contentType = 'application/octet-stream',
+    status?: number,
+    totalSize?: number
+  ): Promise<boolean> {
+    if (this.aborted || this.responded || !this.res) return false;
+    this.responded = true;
+
+    const code = status !== undefined ? status : this.statusCode;
+    this._flush(code);
+    this.res.writeHeader('Content-Type', contentType);
+    
+    if (totalSize !== undefined) {
+      this.res.writeHeader('Content-Length', totalSize.toString());
+    }
+
+    // Cork for initial headers (batch writes)
+    this.res.cork(() => {});
+
+    // Convert to async iterable if needed
+    const iterable: AsyncIterable<Buffer> = Symbol.asyncIterator in chunks
+      ? (chunks as AsyncIterable<Buffer>)
+      : {
+          async *[Symbol.asyncIterator]() {
+            for (const chunk of chunks as Buffer[]) {
+              yield chunk;
+            }
+          }
+        };
+
+    try {
+      for await (const chunk of iterable) {
+        if (this.aborted || !this.res) return false;
+
+        // Try to write the chunk
+        const [ok, done] = this.res.tryEnd(chunk, totalSize || 0);
+
+        if (done) {
+          // All data sent successfully
+          return true;
+        }
+
+        if (!ok) {
+          // Backpressure detected - wait for drain
+          const drained = await this._waitForDrain(chunk);
+          if (!drained) return false; // Aborted or failed
+        }
+      }
+
+      // Finalize the response
+      if (!this.aborted && this.res) {
+        this.res.end();
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      if (!this.aborted && this.res) {
+        this.res.close();
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Wait for socket to drain (client to catch up)
+   * Called automatically by stream() when backpressure occurs
+   */
+  private _waitForDrain(remainingData: Buffer): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (this.aborted || !this.res) {
+        resolve(false);
+        return;
+      }
+
+      // Set up drain handler
+      this.res.onWritable((offset: number) => {
+        if (this.aborted || !this.res) {
+          resolve(false);
+          return false;
+        }
+
+        // Try to write remaining data from offset
+        const chunk = remainingData.subarray(offset);
+        const [ok, done] = this.res.tryEnd(chunk, remainingData.length);
+
+        if (done) {
+          resolve(true);
+          return false; // Remove handler
+        }
+
+        if (ok) {
+          // Still more to write, but no backpressure now
+          resolve(true);
+          return false; // Remove handler
+        }
+
+        // Still backpressured, keep handler active
+        return true;
+      });
+    });
+  }
+
+  /**
+   * Send large buffer with automatic chunking and backpressure handling
+   * 
+   * Use this instead of send() for large responses (> 1MB)
+   * 
+   * @param data - Large buffer to send
+   * @param contentType - Content-Type header
+   * @param status - HTTP status code
+   * @param chunkSize - Size of each chunk (default 64KB)
+   */
+  async sendLarge(
+    data: Buffer,
+    contentType = 'application/octet-stream',
+    status?: number,
+    chunkSize = 65536
+  ): Promise<boolean> {
+    const chunks: Buffer[] = [];
+    for (let i = 0; i < data.length; i += chunkSize) {
+      chunks.push(data.subarray(i, Math.min(i + chunkSize, data.length)));
+    }
+    return this.stream(chunks, contentType, status, data.length);
+  }
+
+  /**
+   * Check if we can write more data without backpressure
+   * Returns current write offset
+   */
+  getWriteOffset(): number {
+    if (!this.res) return 0;
+    return this.res.getWriteOffset();
   }
 }
 
