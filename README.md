@@ -668,7 +668,7 @@ export function usersModule(app: App) {
 
 ## 📄 License
 
-MIT © [Your Name]
+MIT
 
 ---
 
