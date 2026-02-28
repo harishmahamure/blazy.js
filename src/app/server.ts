@@ -26,6 +26,7 @@ import { healthModule } from './modules/health.module.js';
 import { usersModule } from './modules/users.module.js';
 import { websocketModule } from './modules/websocket.module.js';
 import { protoUsersModule } from './modules/proto-users.module.js';
+import { abortHandlingExamples } from './modules/abort-handling.example.js';
 
 // =================== STARTUP ===================
 
@@ -62,7 +63,8 @@ app.use(rateLimit({ max: 100, windowMs: 60_000 }));
 const protoRegistry = new ProtoRegistry();
 await protoRegistry.loadProto('./protos/messages.proto');
 
-// Global protobuf content negotiation middleware (auto-decode mapped routes)
+abortHandlingExamples(app);
+
 app.use(protobufMiddleware({
   registry: protoRegistry,
   requestTypes: {

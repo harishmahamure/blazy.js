@@ -51,6 +51,7 @@ Blazy is a production-ready backend template designed for extreme performance an
 - 🐳 **Optimized Dockerfile** — 256 MB containers, fast cold starts
 - 🔐 **Security Middleware** — CORS, rate limiting, auth, request ID
 - 🚨 **Error Handling** — Graceful error boundaries, structured errors
+- 🛡️ **Abort Protection** — Automatic dangling pointer prevention on client disconnect
 - 📊 **Health Checks** — `/health`, `/ready`, `/stats` endpoints
 - ♻️ **Graceful Shutdown** — Clean lifecycle hooks
 
@@ -396,6 +397,51 @@ app.get('/users/:id', (ctx) => {
 // Custom errors
 throw new AppError(422, 'Validation failed', 'VALIDATION_ERROR', { fields: ['email'] });
 ```
+
+### Abort Handling (Client Disconnects)
+
+**Blazy.JS** automatically protects against dangling pointer exceptions when clients disconnect, time out, or abort requests. All response methods are safe by default.
+
+```typescript
+app.get('/api/slow-operation', async (ctx) => {
+  // Long database query
+  await step1();
+  
+  // Check if client is still connected
+  if (ctx.aborted) {
+    console.log('Client disconnected, stopping');
+    return; // Exit early, save CPU
+  }
+  
+  await step2();
+  if (ctx.aborted) return;
+  
+  await step3();
+  if (ctx.aborted) return;
+  
+  ctx.json({ result: 'done' }); // Safe - won't crash if aborted
+});
+```
+
+#### Automatic Protection
+
+- ✅ All `ctx.json()`, `ctx.text()`, `ctx.send()` methods check abort status
+- ✅ No segmentation faults or crashes
+- ✅ Resources properly released via context pool
+- ✅ Zero performance overhead
+
+#### Testing Abort Handling
+
+```bash
+# Test with curl timeout
+curl --max-time 2 http://localhost:3000/api/slow-operation
+
+# Test with manual disconnect (Ctrl+C)
+curl http://localhost:3000/api/slow-operation
+# Press Ctrl+C after 2 seconds
+```
+
+📖 **See [docs/ABORT_HANDLING.md](docs/ABORT_HANDLING.md) for detailed examples and best practices**
 
 ### Configuration
 

@@ -160,6 +160,12 @@ export class Context {
 
     // req is only valid synchronously — capture what we need now
     this.req = req;
+
+    // Register abort handler to prevent dangling pointer exceptions
+    res.onAborted(() => {
+      this.aborted = true;
+      this.res = null; // Clear reference to prevent use-after-free
+    });
   }
 
   /**
@@ -304,7 +310,7 @@ export class Context {
    * uWS requires: writeStatus → writeHeader → end
    */
   setHeader(key: string, value: string): this {
-    if (this.aborted || this.responded) return this;
+    if (this.aborted || this.responded || !this.res) return this;
     if (!this._resHeaderKeys) {
       this._resHeaderKeys = [key];
       this._resHeaderVals = [value];
@@ -326,7 +332,8 @@ export class Context {
    * MUST be called before res.end()
    */
   private _flush(statusCode: number): void {
-    const res = this.res!;
+    if (!this.res) return; // Safety check
+    const res = this.res;
 
     if (statusCode !== 200) {
       res.writeStatus(statusText(statusCode));
@@ -341,37 +348,40 @@ export class Context {
 
   /** Send JSON response */
   json(data: unknown, status?: number): void {
-    if (this.aborted || this.responded) return;
+    if (this.aborted || this.responded || !this.res) {
+      console.error('Cannot send JSON response: context is aborted or responded or res is null');
+      return;
+    };
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
     const body = JSON.stringify(data);
 
     this._flush(code);
-    this.res!.writeHeader('Content-Type', 'application/json');
-    this.res!.end(body);
+    this.res.writeHeader('Content-Type', 'application/json');
+    this.res.end(body);
   }
 
   /** Send plain text response */
   text(text: string, status?: number): void {
-    if (this.aborted || this.responded) return;
+    if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
     this._flush(code);
-    this.res!.writeHeader('Content-Type', 'text/plain');
-    this.res!.end(text);
+    this.res.writeHeader('Content-Type', 'text/plain');
+    this.res.end(text);
   }
 
   /** Send raw buffer response */
   send(data: Buffer | ArrayBuffer | string, contentType = 'application/octet-stream', status?: number): void {
-    if (this.aborted || this.responded) return;
+    if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
     this._flush(code);
-    this.res!.writeHeader('Content-Type', contentType);
-    this.res!.end(data);
+    this.res.writeHeader('Content-Type', contentType);
+    this.res.end(data);
   }
 
   /** Send HTML response */
@@ -381,19 +391,19 @@ export class Context {
 
   /** Send an empty response with status code */
   empty(code = 204): void {
-    if (this.aborted || this.responded) return;
+    if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
     this._flush(code);
-    this.res!.end();
+    this.res.end();
   }
 
   /** Redirect to another URL */
   redirect(url: string, code = 302): void {
-    if (this.aborted || this.responded) return;
+    if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
     this._flush(code);
-    this.res!.writeHeader('Location', url);
-    this.res!.end();
+    this.res.writeHeader('Location', url);
+    this.res.end();
   }
 }
 
