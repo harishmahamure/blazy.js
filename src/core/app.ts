@@ -239,10 +239,6 @@ export class App {
     ctx.init(res, req);
     ctx.captureHeaders();
 
-    res.onAborted(() => {
-      ctx.aborted = true;
-    });
-
     const router = this.router;
 
     const routeHandler = async (ctx: Context): Promise<void> => {
