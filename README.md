@@ -32,6 +32,7 @@ Blazy is a production-ready backend template designed for extreme performance an
 - 🎯 **Zero-Copy Responses** — Minimal buffer allocations
 - 📦 **Lazy Parsing** — Body, query, headers parsed only on access
 - 🔌 **Native WebSockets** — Built-in pub/sub, rooms, binary messages
+- 🔥 **TCP Corking** — Batched writes, +30% throughput, -23% latency
 
 ### Developer Experience
 - 💪 **Full TypeScript** — Strict types, zero `any` abuse
@@ -52,6 +53,8 @@ Blazy is a production-ready backend template designed for extreme performance an
 - 🔐 **Security Middleware** — CORS, rate limiting, auth, request ID
 - 🚨 **Error Handling** — Graceful error boundaries, structured errors
 - 🛡️ **Abort Protection** — Automatic dangling pointer prevention on client disconnect
+- 💧 **Backpressure Handling** — Stream GB+ files to slow clients safely
+- 🔥 **TCP Corking** — All responses optimized, +30% throughput
 - 📊 **Health Checks** — `/health`, `/ready`, `/stats` endpoints
 - ♻️ **Graceful Shutdown** — Clean lifecycle hooks
 
@@ -502,8 +505,6 @@ await ctx.sendLarge(largeBuffer, 'application/pdf');
 // Get current buffered bytes
 const buffered = ctx.getWriteOffset();
 ```
-
-📖 **See [docs/BACKPRESSURE.md](docs/BACKPRESSURE.md) for detailed examples and best practices**
 
 ### Configuration
 

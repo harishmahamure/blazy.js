@@ -55,5 +55,9 @@ export {
   decodeProto,
   isProtobufRequest,
   acceptsProtobuf,
-} from './app/middleware/protobuf.js';
+} from './core/middleware/protobuf.js';
+
 export type { ProtobufMiddlewareOptions } from './app/middleware/protobuf.js';
+
+// Middleware
+export { authMiddleware, corsMiddleware, rateLimitMiddleware, requestIdMiddleware,  ProtoRegistryMiddleware } from './core/middleware/index.js';

@@ -349,18 +349,18 @@ export class Context {
 
   /** Send JSON response */
   json(data: unknown, status?: number): void {
-    if (this.aborted || this.responded || !this.res) {
-      console.error('Cannot send JSON response: context is aborted or responded or res is null');
-      return;
-    };
+    if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
     const body = JSON.stringify(data);
 
-    this._flush(code);
-    this.res.writeHeader('Content-Type', 'application/json');
-    this.res.end(body);
+    // Cork all writes together for performance
+    this.res.cork(() => {
+      this._flush(code);
+      this.res!.writeHeader('Content-Type', 'application/json');
+      this.res!.end(body);
+    });
   }
 
   /** Send plain text response */
@@ -369,9 +369,12 @@ export class Context {
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
-    this._flush(code);
-    this.res.writeHeader('Content-Type', 'text/plain');
-    this.res.end(text);
+    
+    this.res.cork(() => {
+      this._flush(code);
+      this.res!.writeHeader('Content-Type', 'text/plain');
+      this.res!.end(text);
+    });
   }
 
   /** Send raw buffer response */
@@ -380,9 +383,12 @@ export class Context {
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
-    this._flush(code);
-    this.res.writeHeader('Content-Type', contentType);
-    this.res.end(data);
+    
+    this.res.cork(() => {
+      this._flush(code);
+      this.res!.writeHeader('Content-Type', contentType);
+      this.res!.end(data);
+    });
   }
 
   /** Send HTML response */
@@ -394,17 +400,23 @@ export class Context {
   empty(code = 204): void {
     if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
-    this._flush(code);
-    this.res.end();
+    
+    this.res.cork(() => {
+      this._flush(code);
+      this.res!.end();
+    });
   }
 
   /** Redirect to another URL */
   redirect(url: string, code = 302): void {
     if (this.aborted || this.responded || !this.res) return;
     this.responded = true;
-    this._flush(code);
-    this.res.writeHeader('Location', url);
-    this.res.end();
+    
+    this.res.cork(() => {
+      this._flush(code);
+      this.res!.writeHeader('Location', url);
+      this.res!.end();
+    });
   }
 
   // =================== BACKPRESSURE HANDLING ===================
@@ -443,15 +455,16 @@ export class Context {
     this.responded = true;
 
     const code = status !== undefined ? status : this.statusCode;
-    this._flush(code);
-    this.res.writeHeader('Content-Type', contentType);
     
-    if (totalSize !== undefined) {
-      this.res.writeHeader('Content-Length', totalSize.toString());
-    }
-
-    // Cork for initial headers (batch writes)
-    this.res.cork(() => {});
+    // Cork for initial headers (batch all header writes)
+    this.res.cork(() => {
+      this._flush(code);
+      this.res!.writeHeader('Content-Type', contentType);
+      
+      if (totalSize !== undefined) {
+        this.res!.writeHeader('Content-Length', totalSize.toString());
+      }
+    });
 
     // Convert to async iterable if needed
     const iterable: AsyncIterable<Buffer> = Symbol.asyncIterator in chunks
