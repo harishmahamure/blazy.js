@@ -28,7 +28,7 @@ export function healthModule(app: App): void {
         healthy = false;
       }
     }
-
+    
     ctx.json(
       { status: healthy ? 'ok' : 'degraded', checks, timestamp: Date.now() },
       healthy ? 200 : 503
