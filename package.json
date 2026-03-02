@@ -1,6 +1,6 @@
 {
   "name": "@harishmahamure/blazy.js",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Blazy.JS - Ultra-lightweight, blazing-fast TypeScript backend framework built on uWebSockets.js",
   "type": "module",
   "exports": {
